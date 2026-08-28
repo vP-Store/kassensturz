@@ -9,6 +9,12 @@
 import { useSyncExternalStore } from "react";
 import { advanceDate } from "@/lib/cycle";
 import { isoDate, newId, round2 } from "@/lib/money";
+import {
+  SEED_ACCOUNTS,
+  SEED_CATEGORIES,
+  SEED_RECURRINGS,
+  SEED_SETTINGS,
+} from "@/lib/seed-data";
 import type {
   Account,
   Budget,
@@ -24,63 +30,17 @@ import type {
 export const STORAGE_KEY = "kassensturz.db.v2";
 const THEME_KEY = "kassensturz.theme";
 
-export const DEFAULT_SETTINGS: Settings = {
-  householdName: "Unser Haushalt",
-  incomeDay: 23,
-  periodMode: "cycle",
-  theme: "system",
-  budgetMethod: "simple",
-  needsPct: 50,
-  wantsPct: 30,
-  savePct: 20,
-  bufferWarn: 0,
-};
+export const DEFAULT_SETTINGS: Settings = { ...SEED_SETTINGS };
 
-function seedAccounts(): Account[] {
-  const now = new Date().toISOString();
-  return [
-    { id: newId(), name: "Giro Privat", kind: "giro", realm: "privat", openingBalance: 0, archived: false, createdAt: now },
-    { id: newId(), name: "Giro Gewerbe", kind: "gewerbe", realm: "gewerbe", openingBalance: 0, archived: false, createdAt: now },
-    { id: newId(), name: "Sparen", kind: "spar", realm: "privat", openingBalance: 0, archived: false, createdAt: now },
-    { id: newId(), name: "Bargeld", kind: "cash", realm: "privat", openingBalance: 0, archived: false, createdAt: now },
-  ];
-}
-
-const SEED_CATEGORIES: Omit<Category, "id" | "archived">[] = [
-  { name: "Gehalt", kind: "income", realm: "privat", bucket: "need" },
-  { name: "Kindergeld", kind: "income", realm: "privat", bucket: "need" },
-  { name: "Sonstige Einnahme", kind: "income", realm: "privat", bucket: "need" },
-  { name: "Miete", kind: "expense", realm: "privat", bucket: "need" },
-  { name: "Strom / Gas", kind: "expense", realm: "privat", bucket: "need" },
-  { name: "Internet / Handy", kind: "expense", realm: "privat", bucket: "need" },
-  { name: "Versicherungen", kind: "expense", realm: "privat", bucket: "need" },
-  { name: "Lebensmittel", kind: "expense", realm: "privat", bucket: "need" },
-  { name: "Mobilität", kind: "expense", realm: "privat", bucket: "need" },
-  { name: "Gesundheit", kind: "expense", realm: "privat", bucket: "need" },
-  { name: "Abos", kind: "expense", realm: "privat", bucket: "want" },
-  { name: "Freizeit", kind: "expense", realm: "privat", bucket: "want" },
-  { name: "Kleidung", kind: "expense", realm: "privat", bucket: "want" },
-  { name: "Sparen", kind: "expense", realm: "privat", bucket: "save" },
-  { name: "Umsatz", kind: "income", realm: "gewerbe", bucket: "need" },
-  { name: "Wareneinsatz", kind: "expense", realm: "gewerbe", bucket: "need" },
-  { name: "Software / Tools", kind: "expense", realm: "gewerbe", bucket: "need" },
-  { name: "Gebühren", kind: "expense", realm: "gewerbe", bucket: "need" },
-  { name: "Werbung", kind: "expense", realm: "gewerbe", bucket: "want" },
-  { name: "Steuer-Rücklage", kind: "expense", realm: "gewerbe", bucket: "save" },
-];
-
-function seedCategories(): Category[] {
-  return SEED_CATEGORIES.map((c) => ({ ...c, id: newId(), archived: false }));
-}
-
+/** Frischer Stand beim ersten Start — mit den hinterlegten Startdaten. */
 export function emptyDb(): Database {
   return {
     version: 2,
-    settings: { ...DEFAULT_SETTINGS },
-    accounts: seedAccounts(),
-    categories: seedCategories(),
+    settings: { ...SEED_SETTINGS },
+    accounts: structuredClone(SEED_ACCOUNTS),
+    categories: structuredClone(SEED_CATEGORIES),
     transactions: [],
-    recurrings: [],
+    recurrings: structuredClone(SEED_RECURRINGS),
     budgets: [],
     goals: [],
     debts: [],
@@ -432,8 +392,14 @@ export function importJson(raw: string): void {
   for (const l of listeners) l();
 }
 
-export function resetAll(): void {
-  cache = emptyDb();
+/** Wirklich leer — ohne die hinterlegten Startdaten. */
+export function blankDb(): Database {
+  const base = emptyDb();
+  return { ...base, recurrings: [], transactions: [] };
+}
+
+export function resetAll(keepStartData = true): void {
+  cache = keepStartData ? emptyDb() : blankDb();
   persist(cache);
   for (const l of listeners) l();
 }

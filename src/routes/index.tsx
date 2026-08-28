@@ -61,6 +61,19 @@ export function HomePage() {
     <AppShell title="Übersicht">
       <PeriodBar period={period} onChange={setPeriod} />
 
+      {db.recurrings.length === 0 && db.transactions.length === 0 ? (
+        <Card className="mb-3">
+          <p className="text-sm font-medium">Noch nichts eingerichtet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Trage unter <Link to="/konten" className="underline underline-offset-4">Konten</Link> deinen
+            aktuellen Kontostand ein und lege unter{" "}
+            <Link to="/fixkosten" className="underline underline-offset-4">Fixkosten</Link> an, was jeden
+            Monat abgeht. Hast du schon eine Sicherungsdatei, spiel sie unter{" "}
+            <Link to="/einstellungen" className="underline underline-offset-4">Einstellungen</Link> ein.
+          </p>
+        </Card>
+      ) : null}
+
       <section className="grid grid-cols-2 gap-3">
         <Card>
           <p className="mb-2 min-h-8 text-xs font-medium tracking-wider text-muted-foreground uppercase">

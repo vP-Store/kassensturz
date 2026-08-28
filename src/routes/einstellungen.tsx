@@ -18,7 +18,7 @@ const THEMES: { id: ThemeChoice; label: string }[] = [
 export function EinstellungenPage() {
   const db = useDb();
   const [theme, setTheme] = useTheme();
-  const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmReset, setConfirmReset] = useState<"seed" | "blank" | null>(null);
   const jsonInput = useRef<HTMLInputElement>(null);
   const csvInput = useRef<HTMLInputElement>(null);
 
@@ -245,23 +245,33 @@ export function EinstellungenPage() {
 
       <Section className="mt-3" title="Neu anfangen">
         <p className="text-sm text-muted-foreground">
-          Löscht alle Buchungen, Konten und Einstellungen auf diesem Gerät.
+          Zurücksetzen löscht alle Buchungen auf diesem Gerät und stellt die hinterlegten
+          Fixkosten wieder her. „Komplett leeren“ entfernt auch die.
         </p>
-        <Button variant="danger" className="mt-3 w-full" onClick={() => setConfirmReset(true)}>
-          Alles zurücksetzen
-        </Button>
+        <div className="mt-3 grid gap-2">
+          <Button variant="outline" onClick={() => setConfirmReset("seed")}>
+            Auf Startdaten zurücksetzen
+          </Button>
+          <Button variant="danger" onClick={() => setConfirmReset("blank")}>
+            Komplett leeren
+          </Button>
+        </div>
       </Section>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">Kassensturz · Version 2.0</p>
 
       <ConfirmDialog
-        open={confirmReset}
-        title="Wirklich alles löschen?"
-        body="Alle Daten auf diesem Gerät werden entfernt. Lade vorher eine Sicherung herunter, wenn du sie behalten willst."
-        confirmLabel="Alles löschen"
-        onClose={() => setConfirmReset(false)}
+        open={confirmReset !== null}
+        title={confirmReset === "blank" ? "Wirklich komplett leeren?" : "Auf Startdaten zurücksetzen?"}
+        body={
+          confirmReset === "blank"
+            ? "Alle Buchungen und die hinterlegten Fixkosten werden entfernt. Lade vorher eine Sicherung herunter, wenn du sie behalten willst."
+            : "Alle Buchungen werden gelöscht, die hinterlegten Fixkosten und Konten kommen zurück."
+        }
+        confirmLabel={confirmReset === "blank" ? "Komplett leeren" : "Zurücksetzen"}
+        onClose={() => setConfirmReset(null)}
         onConfirm={() => {
-          resetAll();
+          resetAll(confirmReset !== "blank");
           toast.ok("Zurückgesetzt");
         }}
       />

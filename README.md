@@ -48,6 +48,11 @@ Alles liegt im `localStorage` des Browsers unter `kassensturz.db.v2`. Das heißt
 - für den Umzug auf ein neues Gerät: Einstellungen → Sicherung herunterladen,
   auf dem neuen Gerät wieder einspielen
 
+Im Quellcode stehen bewusst **keine** persönlichen Zahlen. `src/lib/seed-data.ts`
+enthält nur neutrale Konten und Kategorien, damit man sofort loslegen kann.
+Eigene Fixkosten kommen entweder direkt in der App dazu oder über eine
+eingespielte Sicherungsdatei.
+
 ## Technik
 
 React 19, TanStack Router (Hash-Routing, damit tiefe Links auf GitHub Pages
