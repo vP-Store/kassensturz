@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+
+  /* Helle Palette = Standardwerte. Dunkel überschreibt sie weiter unten. */
+  --color-background: #faf8f4;
+  --color-foreground: #1a1a17;
+  --color-card: #ffffff;
+  --color-card-foreground: #1a1a17;
+  --color-muted: #f1ece2;
+  --color-muted-foreground: #6d685e;
+  --color-border: #e4ded1;
+  --color-input: #e4ded1;
+  --color-primary: #1f1e1a;
+  --color-primary-foreground: #faf8f4;
+  --color-secondary: #f1ece2;
+  --color-secondary-foreground: #1a1a17;
+  --color-accent: #efe9dd;
+  --color-destructive: #a8443a;
+  --color-ring: #1f1e1a;
+  --color-positive: #3f7040;
+  --color-caution: #96702a;
+  --color-overlay: rgb(26 26 23 / 0.45);
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}
+
+/* Dunkelmodus: nur die Farbwerte werden getauscht. */
+html[data-theme="dark"] {
+  --color-background: #0c0c0b;
+  --color-foreground: #f2efe8;
+  --color-card: #141413;
+  --color-card-foreground: #f2efe8;
+  --color-muted: #1c1c1b;
+  --color-muted-foreground: #8f8c84;
+  --color-border: #2a2a28;
+  --color-input: #2a2a28;
+  --color-primary: #e8e4d9;
+  --color-primary-foreground: #0c0c0b;
+  --color-secondary: #1c1c1b;
+  --color-secondary-foreground: #f2efe8;
+  --color-accent: #1f1f1d;
+  --color-destructive: #d3928a;
+  --color-ring: #e8e4d9;
+  --color-positive: #8faf8c;
+  --color-caution: #c9b08a;
+  --color-overlay: rgb(0 0 0 / 0.6);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    /* Weiches Umschalten zwischen hell und dunkel */
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  label {
+    cursor: pointer;
+  }
+
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
