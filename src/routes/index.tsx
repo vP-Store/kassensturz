@@ -13,6 +13,7 @@ import {
   methodLabel,
   openFixed,
   openFixedSum,
+  openIncomeSum,
   periodTransactions,
   realmBalance,
   sumExpense,
@@ -20,7 +21,7 @@ import {
   totalBalance,
 } from "@/lib/compute";
 import { cycleEnd, cycleStart, daysUntil, nextPayday, periodKeyFor } from "@/lib/cycle";
-import { formatDayMonth, formatDayMonthYear, formatEuro, formatShortDate } from "@/lib/money";
+import { formatDayMonth, formatDayMonthYear, formatEuro, formatShortDate, round2 } from "@/lib/money";
 import { bookRecurring, skipRecurring, useDb } from "@/lib/store";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,10 @@ export function HomePage() {
   const gewerbe = realmBalance(accounts, "gewerbe");
   const fixed = openFixed(db, now);
   const fixedSum = openFixedSum(db, now);
-  const afterFixed = available - fixedSum;
+  // Erwartete Einnahmen bis zum nächsten Eingang gehören in die Rechnung,
+  // sonst sieht der Zyklus schlechter aus, als er ist.
+  const comingIn = openIncomeSum(db, now);
+  const afterFixed = round2(available - fixedSum + comingIn);
   const payday = nextPayday(now, db.settings.incomeDay);
   const daysLeft = Math.max(1, daysUntil(payday, now));
   const perDay = afterFixed / daysLeft;
@@ -68,7 +72,7 @@ export function HomePage() {
         </Card>
         <Card>
           <p className="mb-2 min-h-8 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-            Nach Fixkosten
+            Rest bis zum Eingang
           </p>
           <p
             className={cn(
@@ -80,6 +84,27 @@ export function HomePage() {
           </p>
         </Card>
       </section>
+
+      <div className="mt-3 rounded-xl border border-border bg-card px-4 py-3 text-sm">
+        <div className="flex justify-between py-0.5">
+          <span className="text-muted-foreground">Auf den Konten</span>
+          <span className="tabular-nums">{formatEuro(available)}</span>
+        </div>
+        <div className="flex justify-between py-0.5">
+          <span className="text-muted-foreground">Noch erwartete Einnahmen</span>
+          <span className="tabular-nums text-positive">+ {formatEuro(comingIn)}</span>
+        </div>
+        <div className="flex justify-between py-0.5">
+          <span className="text-muted-foreground">Offene Fixkosten</span>
+          <span className="tabular-nums text-destructive">− {formatEuro(fixedSum)}</span>
+        </div>
+        <div className="mt-1 flex justify-between border-t border-border pt-1.5 font-medium">
+          <span>Rest am {formatDayMonth(cycleEnd(now, db.settings.incomeDay))}</span>
+          <span className={cn("tabular-nums", afterFixed < 0 && "text-destructive")}>
+            {formatEuro(afterFixed)}
+          </span>
+        </div>
+      </div>
 
       {/* Die Zahl, die man morgens wirklich braucht */}
       <Card className="mt-3 text-center">
@@ -107,7 +132,8 @@ export function HomePage() {
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <span>
-            Die offenen Fixkosten übersteigen dein Guthaben um {formatEuro(Math.abs(afterFixed))}.
+            In diesem Zyklus fehlen {formatEuro(Math.abs(afterFixed))}. Schau in den Fixkosten, was
+            sich verschieben oder kürzen lässt.
           </span>
         </div>
       ) : null}
@@ -133,8 +159,8 @@ export function HomePage() {
           <Empty>Bis zum nächsten Eingang ist alles bezahlt.</Empty>
         ) : (
           <ul className="divide-y divide-border">
-            {fixed.map((f) => (
-              <li key={f.id} className="flex items-center gap-2 py-2.5">
+            {fixed.slice(0, 6).map((f) => (
+              <li key={f.key} className="flex items-center gap-2 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{f.name}</p>
                   <p className="text-xs text-muted-foreground">
@@ -142,37 +168,52 @@ export function HomePage() {
                     {f.daysLate > 0 ? (
                       <span className="text-destructive"> · {f.daysLate} Tage überfällig</span>
                     ) : null}
+                    {!f.isNext ? " · später im Zyklus" : ""}
                   </p>
                 </div>
                 <span className="text-sm tabular-nums">{formatEuro(f.amount)}</span>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  aria-label={`${f.name} als bezahlt buchen`}
-                  title="Als bezahlt buchen"
-                  onClick={() => {
-                    bookRecurring(f.id);
-                    toast.ok(`${f.name} gebucht`);
-                  }}
-                >
-                  <Check className="size-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`${f.name} überspringen`}
-                  title="Diesen Monat überspringen"
-                  onClick={() => {
-                    skipRecurring(f.id);
-                    toast.ok(`${f.name} übersprungen`);
-                  }}
-                >
-                  <SkipForward className="size-4" />
-                </Button>
+                {f.isNext ? (
+                  <>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      aria-label={`${f.name} als bezahlt buchen`}
+                      title="Als bezahlt buchen"
+                      onClick={() => {
+                        bookRecurring(f.id);
+                        toast.ok(`${f.name} gebucht`);
+                      }}
+                    >
+                      <Check className="size-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`${f.name} überspringen`}
+                      title="Diesen Termin überspringen"
+                      onClick={() => {
+                        skipRecurring(f.id);
+                        toast.ok(`${f.name} übersprungen`);
+                      }}
+                    >
+                      <SkipForward className="size-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <span className="w-[4.5rem] shrink-0" />
+                )}
               </li>
             ))}
           </ul>
         )}
+        {fixed.length > 6 ? (
+          <Link
+            to="/fixkosten"
+            className="mt-3 inline-block text-sm underline underline-offset-4"
+          >
+            {fixed.length - 6} weitere Termine ansehen
+          </Link>
+        ) : null}
         {late.length > 0 ? (
           <p className="mt-3 text-xs text-muted-foreground">
             {late.length} {late.length === 1 ? "Position ist" : "Positionen sind"} überfällig. Haken

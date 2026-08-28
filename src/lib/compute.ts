@@ -1,4 +1,4 @@
-import { cycleEnd, isInPeriod, periodRange, startOfDay } from "@/lib/cycle";
+import { advanceDate, cycleEnd, isInPeriod, periodRange, startOfDay } from "@/lib/cycle";
 import { isoDate, round2 } from "@/lib/money";
 import type {
   Account,
@@ -135,47 +135,58 @@ export function byCategory(
 /* ----------------------------------------------------------- Fixkosten */
 
 export type OpenFixed = {
+  /** Eindeutig pro Termin — eine wöchentliche Position hat mehrere. */
+  key: string;
   id: string;
   name: string;
   amount: number;
   dueOn: string;
   daysLate: number;
   realm: Realm;
-  accountId: string;
-  categoryId: string | null;
-  autoBook: boolean;
+  interval: string;
+  /** Der erste offene Termin dieser Position — nur er lässt sich abhaken. */
+  isNext: boolean;
 };
 
 /**
- * Noch offene Fixkosten bis zum nächsten Geldeingang — inklusive überfälliger.
- * `daysLate > 0` heißt: der Termin liegt in der Vergangenheit und die Position
- * wurde nie abgehakt.
+ * Alle noch offenen Fixkosten-Termine bis zum nächsten Geldeingang, inklusive
+ * überfälliger. Wöchentliche Positionen werden aufgefächert: in einem Zyklus
+ * steht ein wöchentlicher Einkauf vier- bis fünfmal an, nicht einmal.
  */
 export function openFixed(db: Database, from: Date = new Date()): OpenFixed[] {
   const horizon = isoDate(cycleEnd(from, db.settings.incomeDay));
   const today = startOfDay(from).getTime();
-  return db.recurrings
-    .filter((r) => r.active && r.type === "expense" && r.nextDate <= horizon)
-    .map((r) => {
-      const due = new Date(
-        Number(r.nextDate.slice(0, 4)),
-        Number(r.nextDate.slice(5, 7)) - 1,
-        Number(r.nextDate.slice(8, 10)),
+  const out: OpenFixed[] = [];
+
+  for (const r of db.recurrings) {
+    if (!r.active || r.type !== "expense") continue;
+    const cat = r.categoryId ? db.categories.find((c) => c.id === r.categoryId) : undefined;
+    const realm = cat?.realm ?? db.accounts.find((a) => a.id === r.accountId)?.realm ?? "privat";
+    let due = r.nextDate;
+    let n = 0;
+    while (due <= horizon && n < 60) {
+      const dueTime = new Date(
+        Number(due.slice(0, 4)),
+        Number(due.slice(5, 7)) - 1,
+        Number(due.slice(8, 10)),
       ).getTime();
-      const cat = r.categoryId ? db.categories.find((c) => c.id === r.categoryId) : undefined;
-      return {
+      out.push({
+        key: `${r.id}-${due}-${n}`,
         id: r.id,
         name: r.name,
         amount: r.amount,
-        dueOn: r.nextDate,
-        daysLate: Math.max(0, Math.round((today - due) / 86_400_000)),
-        realm: cat?.realm ?? db.accounts.find((a) => a.id === r.accountId)?.realm ?? "privat",
-        accountId: r.accountId,
-        categoryId: r.categoryId,
-        autoBook: r.autoBook,
-      };
-    })
-    .sort((a, b) => a.dueOn.localeCompare(b.dueOn));
+        dueOn: due,
+        daysLate: Math.max(0, Math.round((today - dueTime) / 86_400_000)),
+        realm,
+        interval: r.interval,
+        isNext: n === 0,
+      });
+      due = advanceDate(due, r.interval);
+      n += 1;
+    }
+  }
+
+  return out.sort((a, b) => a.dueOn.localeCompare(b.dueOn));
 }
 
 export function openFixedSum(db: Database, from: Date = new Date()): number {
