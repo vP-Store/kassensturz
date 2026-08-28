@@ -2,7 +2,11 @@ node_modules
 dist
 .DS_Store
 *.local
+
+# Lokale Testskripte und persönliche Daten gehören nicht ins Repository
+*.mjs.local
 shot.mjs
 check*.mjs
-swcheck.mjs
+*check.mjs
 swdebug*.mjs
+kassensturz-*.json
